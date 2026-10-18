@@ -775,7 +775,7 @@
       hint = 'PUT YOUR PADDLE IN THE RING!';
     }
     const h = $('hint');
-    if (h.textContent !== hint && hint) h.textContent = hint;
+    if (hint && G.hintText !== hint) { h.textContent = hint; G.hintText = hint; }
     h.classList.toggle('on', !!hint);
   }
 
@@ -838,11 +838,11 @@
     $('lab0').textContent = mode === '2p' ? 'PLAYER 1 · A D + F' : 'YOU';
     $('lab1').textContent = mode === '2p' ? 'PLAYER 2 · ← → + L' : 'VS (COMPUTER)';
     $('row1').style.display = mode === 'rally' ? 'none' : '';
-    $('pickFoot').innerHTML = mode === 'rally'
-      ? 'Keep the ball going against <b>Bolt the wall robot</b>. He never misses, and he gets faster every hit. How many can you do?'
+    $('pickFoot').textContent = mode === 'rally'
+      ? 'Keep the ball going against Bolt the wall robot. He never misses, and he gets faster every hit. How many can you do?'
       : mode === '2p'
-        ? 'Side view. <b>P1</b>: W A S D move, <b>F</b> swing, <b>T</b> calls your brother. <b>P2</b>: arrows move, <b>L</b> swing, <b>Enter</b> calls. Hold toward the net for topspin, away for backspin. On a touch screen, tap your half to swing.'
-        : 'First to 11 (win by 2). Serves change every 2 points. Tap your brother\'s face, or press <b>T</b>, to call him in for 10 seconds of doubles!';
+        ? 'Side view. P1: W A S D move, F swing, T calls your brother. P2: arrows move, L swing, Enter calls. Hold toward the net for topspin, away for backspin. On a touch screen, tap your half to swing.'
+        : 'First to 11 (win by 2). Serves change every 2 points. Tap your brother\'s face, or press T, to call him in for 10 seconds of doubles!';
     for (let r = 0; r < 2; r++) {
       const row = $('row' + r), cards = row.querySelector('.cards');
       cards.innerHTML = '';
@@ -896,7 +896,7 @@
     if (G.mode === 'demo' || G.screen === 'results') return;
     G.paused = on;
     showScreen(on ? 'pause' : 'hud');
-    $('pauseFoot').innerHTML = G.mode === '2p'
+    $('pauseFoot').textContent = G.mode === '2p'
       ? 'P1: W A S D + F, T calls · P2: arrows + L, Enter calls · P pauses · M sound'
       : 'Mouse or finger moves the paddle · swipe up = topspin, down = backspin, sideways = curve · T calls your brother · P pauses · M sound';
     Kit.sound.music(on ? 'pause' : 'play');

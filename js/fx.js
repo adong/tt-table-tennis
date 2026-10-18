@@ -22,6 +22,7 @@
   // a comic starburst with a word: POW!, WHAM!, SMASH!
   const burstCache = {};
   function burstTexture(word, fill = '#ffd400') {
+    if (Kit.lang) word = Kit.lang.t(word); // POW! -> 砰！ in 中文
     const key = word + fill;
     if (burstCache[key]) return burstCache[key];
     const [c, g] = makeCanvas(256, 256);

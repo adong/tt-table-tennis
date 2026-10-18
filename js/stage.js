@@ -62,9 +62,11 @@
     return toTexture(c, true);
   }
 
-  // A barrier board: dark blue with our own name and a ball
-  function boardTexture(kind) {
-    const [c, g] = makeCanvas(512, 160);
+  // A barrier board: dark blue with our own name and a ball. The TT logo and the kids' names stay in English;
+  // PING ★ PONG is redrawn when the language changes.
+  const T_ = (s) => (Kit.lang ? Kit.lang.t(s) : s);
+  function boardTexture(kind, old) {
+    const [c, g] = old ? [old.image, old.image.getContext('2d')] : makeCanvas(512, 160);
     g.fillStyle = '#1b2768';
     g.fillRect(0, 0, 512, 160);
     g.fillStyle = '#2d3f9a';
@@ -91,8 +93,9 @@
       g.font = `52px ${FONT}`;
       g.textAlign = 'center';
       g.fillStyle = '#5ef2ff';
-      g.fillText('PING ★ PONG', 256, 70);
+      g.fillText(T_('PING ★ PONG'), 256, 70);
     }
+    if (old) { old.needsUpdate = true; return old; }
     return toTexture(c);
   }
 
@@ -114,9 +117,10 @@
     back.position.x = -0.065;
     back.rotation.y = -Math.PI / 2;
     grp.add(back);
-    let last = '';
+    let last = '', args = [0, 0, 0, 0, null];
     function update(a, b, ga, gb, names) {
-      const key = [a, b, ga, gb, names].join();
+      args = [a, b, ga, gb, names];
+      const key = [a, b, ga, gb, names, Kit.lang ? Kit.lang.get() : ''].join();
       if (key === last) return;
       last = key;
       g.fillStyle = '#14121f';
@@ -141,10 +145,10 @@
       g.fillText(`${ga} - ${gb}`, 256, 125);
       g.font = `22px ${FONT}`;
       g.fillStyle = '#ffffff';
-      if (names) { g.fillText(names[0], 119, 20); g.fillText(names[1], 393, 20); }
+      if (names) { g.fillText(T_(names[0]), 119, 20); g.fillText(T_(names[1]), 393, 20); }
       tex.needsUpdate = true;
     }
-    return { group: grp, update };
+    return { group: grp, update, redraw: () => update(...args) };
   }
 
   function bunting(parent, x0, z0, x1, z1, y) {
@@ -239,7 +243,7 @@
     bunting(root, -8.5, -6, -8.5, 6, 6.2);
 
     // barriers around the court, with gaps at the corners
-    const boards = [0, 1, 2].map(boardTexture);
+    const boards = [0, 1, 2].map((k) => boardTexture(k));
     const boardGeo = new T.BoxGeometry(2.0, 0.72, 0.05);
     let k = 0;
     const place = (x, z, ry) => {
@@ -315,6 +319,11 @@
     // ---------- the scoreboard and the fans
     const board = scoreboard(root);
     board.group.position.set(-2.75, 0, 0.0);
+    if (Kit.lang) {
+      const redraw = () => { boardTexture(2, boards[2]); board.redraw(); };
+      Kit.lang.onChange(redraw);
+      window.addEventListener('load', redraw); // the game's 中文 words (js/zh.js) load after this is drawn
+    }
     const fans = crowd(root, o.skip || []);
 
     return { root, table, net, tape, board, fans, sun };

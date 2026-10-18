@@ -3,6 +3,7 @@
 [![TT Table Tennis title screen](docs/screenshot.jpg)](https://adong.github.io/tt-table-tennis/)
 
 Press **?** any time (or tap the round **?** button on the left edge) to see the keys. The game waits while you look.
+Tap **中文 / EN** under it to switch between English and 中文 (the dashboard and every game remember the choice).
 
 A table tennis (乒乓球) game starring Teddy and Tommy. The name is the pun: **TT** = **T**eddy & **T**ommy = **T**able **T**ennis. It's built with Claude Code from plain JavaScript and Three.js, on the shared Claude Games kit.
 
@@ -195,6 +196,8 @@ js/fx.js          the ball and its glow, shadow and trail, bounce rings, the aim
 js/sfx.js         ping-pong sounds on top of Kit.sound (tok, tik, net, smash, cheer, yum, ...)
 js/input.js       mouse / finger with swipe speed, keyboard for one or two players, touch halves in 2 players
 js/game.js        scene, cameras, players and companions, events, HUD, menus, main loop, window.game hooks
+js/keys.js        the keys the ? panel shows (Kit.help)
+js/zh.js          中文: the dictionary and rules for every word on the page, the canvas words and the ? panel (Kit.lang)
 tools/soak.js     the headless match runner (node)
 kit/              copy of ~/claude-games/kit (python3 ../kit/tools/sync.py .), never edited here
 dist/tt-table-tennis.html   the single-page build
