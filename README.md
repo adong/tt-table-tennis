@@ -1,6 +1,10 @@
-# TT: Table Tennis
+# TT Table Tennis
 
 [![TT Table Tennis title screen](docs/screenshot.jpg)](https://adong.github.io/tt-table-tennis/)
+
+TT means Table Tennis, and Teddy & Tommy: swipe through the ball to smash and spin it. 1 or 2 players.
+
+**中文：** 乒乓球：TT 是 Table Tennis，也是 Teddy & Tommy。挥拍一划，就能扣杀、打旋转球。单人或双人。
 
 Press **?** any time (or tap the round **?** button on the left edge) to see the keys. The game waits while you look.
 Tap the language button under it (the A文 icon) to switch between English and 中文; the dashboard and every game remember the choice.
@@ -193,7 +197,7 @@ js/cpu.js         CPU levels, Bolt the wall robot, test bots, headless sim / soa
 js/stage.js       the sports hall: table and net, floor, barriers with our own TT boards, scoreboard, benches, fans
 js/poses.js       the paddle, arm reach (aimArm), ready / shuffle / serve / sad / dive / give poses, kit celebrations
 js/fx.js          the ball and its glow, shadow and trail, bounce rings, the aim ring, POW bursts, sparks, confetti, emoji
-js/sfx.js         ping-pong sounds on top of Kit.sound (tok, tik, net, smash, cheer, yum, ...)
+js/sfx.js         table-tennis sounds on top of Kit.sound (tok, tik, net, smash, cheer, yum, ...)
 js/input.js       mouse / finger with swipe speed, keyboard for one or two players, touch halves in 2 players
 js/game.js        scene, cameras, players and companions, events, HUD, menus, main loop, window.game hooks
 js/keys.js        the keys the ? panel shows (Kit.help)
