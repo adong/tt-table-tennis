@@ -32,6 +32,8 @@
         if (b.kind === 'smash') pm = 1 - lv.smashRet;
         if (b.kind === 'serve') pm *= 0.5;
         if (b.kind === 'save') pm *= 0.3;
+        // rally fatigue: after a dozen shots it gets harder to keep going, so every rally ends
+        if (!B.never) pm = Math.min(0.9, pm * (1 + Math.max(0, M.rally - 12) * 0.15) + Math.max(0, M.rally - 12) * 0.01);
         const a = rnd() * Math.PI * 2;
         const m = rnd() < pm ? 0.3 + 0.25 * rnd() : rnd() * 0.12;
         B.off.x = Math.cos(a) * m;
@@ -65,8 +67,10 @@
           // after a long rally Bolt tries a turbo smash now and then
           if (r > 25 && rnd() < Math.min(0.3, (r - 25) * 0.012)) return { smash: true, aim: (rnd() * 2 - 1) * wide, power: 1 };
         }
+        // a long rally: go for a winner
+        if (!B.never && M.rally > 14) { wide = 1; power = Math.min(1, power + 0.2); }
         let aim;
-        if (rnd() < lv.toward) aim = clamp(oppX / 0.7, -0.8, 0.8);
+        if (rnd() < (M.rally > 14 ? 0 : lv.toward)) aim = clamp(oppX / 0.7, -0.8, 0.8);
         else aim = (rnd() < 0.7 ? -1 : 1) * Math.sign(oppX || (rnd() - 0.5)) * wide * (0.45 + 0.55 * rnd());
         const it = { power, aim, top: spin * (rnd() * 1.5 - 0.45), side: rnd() < 0.3 ? spin * (rnd() * 2 - 1) : 0 };
         if (b.y > C.H + 0.55 && rnd() < lv.smash) return { smash: true, aim, power: 1 };
@@ -207,7 +211,7 @@
     }
     return {
       done: M.phase === 'over' || (o.mode === 'rally' && M.runs >= (o.runs || 5)),
-      winner: M.winner, ids, who, frames, seconds: frames / 120,
+      winner: M.winner, ids, who, level: M.level, frames, seconds: frames / 120,
       games: [M.sides[0].games, M.sides[1].games], points: M.stats.points,
       pts: [M.sides[0].stats.points, M.sides[1].stats.points], longestPoint, watchdog: M.stats.watchdog,
       longest: M.longest, saves: M.sides[0].stats.saves + M.sides[1].stats.saves, smashes: M.sides[0].stats.smashes + M.sides[1].stats.smashes,
@@ -235,7 +239,9 @@
       if (r.done) res.finished++;
       else { res.ok = false; res.unfinished.push({ who: r.who, games: r.games, points: r.points, seconds: r.seconds }); }
       if (r.escaped) { res.ok = false; res.escaped++; }
-      if (r.longestPoint > (rally ? 600 : 60)) res.ok = false; // a rally-challenge run is one long "point"
+      // every point must end within 90 s of game time (companion saves can stretch one); a rally-challenge run is
+      // one long "point", up to 10 minutes
+      if (r.longestPoint > (rally ? 600 : 90)) { res.ok = false; res.long = (res.long || []).concat([{ who: r.who, level: r.level, seconds: +r.longestPoint.toFixed(0), longest: r.longest, saves: r.saves }]).slice(0, 5); }
       res.watchdog += r.watchdog;
       res.points += r.points;
       res.saves += r.saves;

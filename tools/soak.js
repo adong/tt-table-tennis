@@ -7,7 +7,7 @@
                                           a fuzz of 3000 random balls thrown at the table
    node tools/soak.js 20 --max 1200       proves the check can fail: matches cut off after 10 s are unfinished
    node tools/soak.js --versus pad:kid easy 50 [--level easy]    win counts for one pairing
-   Exit code 1 if any match didn't finish, a ball left the hall, a point took over a minute, or a fuzzed ball
+   Exit code 1 if any match didn't finish, a ball left the hall, a point took over 90 s, or a fuzzed ball
    never ended in a point. */
 'use strict';
 const fs = require('fs');

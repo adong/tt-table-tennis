@@ -71,6 +71,9 @@
     const o = buildPerson(id, tint);
     o.pd = window.TTPoses.paddle();
     scene.add(o.pd);
+    o.mats = [];
+    o.p.root.traverse((m) => { if (m.isMesh && !o.mats.includes(m.material)) o.mats.push(m.material); });
+    o.alpha = 1;
     Object.assign(o, { i, ph: 0, poseT: 0, cel: null, celT: 0, sadT: 0, follow: 0, followUp: 0, turn: 0, jumpY: 0, jumpT: -1, treat: null, swingT: -1 });
     return o;
   }
@@ -146,6 +149,7 @@
     const scale = o.e.buddyScale || 0.8;
     o.p.root.scale.setScalar(scale);
     o.tag = Kit.gfx.nameTag(o.e.name, i === 0 ? '#8cc2ff' : '#ffb3bd');
+    o.tag.scale.multiplyScalar(0.5);
     scene.add(o.tag);
     const b = { o, id, name: o.e.name, side: i, state: 'off', t: 0, x: 0, z: 0, fx: 0, fz: 0, ph: 0, scale, hop: 0, cel: Kit.roster.signature(o.e, 'hello'), bye: Kit.roster.signature(o.e, 'goodbye'), queueTreat: 0, saveTo: null };
     o.p.root.visible = o.pd.visible = o.tag.visible = false;
@@ -154,17 +158,21 @@
     return b;
   }
 
-  // where he stands: beside his player, on the free-hand side
+  // where he stands: beside his player where the camera can see him. In the 1-player view that's to the right of
+  // your paddle (the camera looks over your right shoulder); in the side view, just behind his player.
   function budSpot(i) {
     const S = G.M.sides[i];
-    return { x: clamp(S.body.x - S.right * 1.15, -2.9, 2.9), z: S.body.z + S.s * 0.15 };
+    if (G.view === 'side') return { x: clamp(S.body.x - 0.7, -2.9, 2.9), z: clamp(S.body.z + S.s * 1.0, -4.6, 4.6) };
+    return { x: clamp(S.pad.x + 1.3, 1.35, 2.6), z: S.body.z - S.s * 0.4 };
   }
+  // where he hops in from (and back out to)
+  const budGate = (i) => ({ x: G.view === 'side' ? -3.9 : 3.9, z: budSpot(i).z });
 
   function budArrive(i) {
     const b = budView(i), S = G.M.sides[i];
     const sp = budSpot(i);
     if (b.state === 'off' || b.state === 'out') {
-      b.x = clamp(S.body.x - S.right * 3.4, -4.0, 4.0);
+      b.x = budGate(i).x;
       b.z = sp.z;
       b.state = 'in';
       b.t = 0;
@@ -229,7 +237,8 @@
     } else if (b.state === 'dive') {
       // throws himself at the ball
       const tgt = b.saveTo;
-      if (tgt) toward(tgt.x - S.right * 0.55, tgt.z + S.s * 0.45, 9);
+      // from the side, level with the ball (beside you in the 1-player view, behind you in the side view)
+      if (tgt) toward(G.view === 'side' ? tgt.x - 0.6 : tgt.x + 0.6, tgt.z + S.s * 0.15, 10);
       mode = 'dive';
       if (b.t > 0.9) { b.state = 'here'; b.t = 0; }
     } else if (b.state === 'bye') {
@@ -238,7 +247,7 @@
       if (b.cel === 'boxing' && b.bye === 'jumpshot') y = Math.max(0, Math.sin(Math.min(1, b.t / 0.6) * Math.PI)) * 0.4;
       if (b.t > 1.0) { b.state = 'out'; b.t = 0; }
     } else if (b.state === 'out') {
-      const there = toward(clamp(S.body.x - S.right * 3.6, -4, 4), sp.z, 3.4);
+      const there = toward(budGate(i).x, sp.z, 3.4);
       mode = 'hop';
       y = Math.abs(Math.sin(b.t * 6.5)) * 0.35;
       if (there) { b.state = 'off'; b.o.p.root.visible = b.o.pd.visible = b.o.tag.visible = false; }
@@ -266,7 +275,7 @@
       else at = sh.clone().add(new T.Vector3(S.right * 0.25 * b.scale, -0.35 * b.scale, -S.s * 0.45 * b.scale));
       placePaddleFor(b.o, at, new T.Vector3(0, 0.1, -S.s), sh, b.scale);
     }
-    b.o.tag.position.set(b.x, (y + 2.25) * b.scale + 0.3, b.z);
+    b.o.tag.position.set(b.x, y + 2.35 * b.scale + 0.12, b.z);
   }
 
   const angleDiff = (a, b) => {
@@ -318,6 +327,7 @@
     const reachFwd = clamp((Math.abs(S.body.z) - Math.abs(S.pad.z) - 0.6) / 0.5, 0, 1);
     window.TTPoses.player(p, { mode, cel: o.cel, t: o.poseT, ph: o.ph, move: sp / 2.5, low, twist: 0.15 }, k);
     if (mode !== 'celebrate' && mode !== 'sad') p.hips.rotation.x -= reachFwd * 0.35 * k;
+    seeThrough(o, S, dt);
     // the paddle
     const hidePad = mode === 'celebrate';
     o.pd.visible = !hidePad;
@@ -355,9 +365,32 @@
     placePaddleFor(o, at, faceV, sh);
   }
 
+  // In the 1-player view you're between the camera and the table: fade to see-through when the ball, or where
+  // you'll meet it, is behind you on the screen.
+  const pv = new T.Vector3();
+  function seeThrough(o, S, dt) {
+    let want = 1;
+    if (G.view === '1p' && o.i === 0 && !G.look && !(o.celT > 0)) {
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      for (const [dx, y] of [[0, 2.35], [0, 0.1], [-0.5, 1.5], [0.5, 1.5]]) {
+        pv.set(S.body.x + dx, y, S.body.z).project(camera);
+        x0 = Math.min(x0, pv.x); x1 = Math.max(x1, pv.x); y0 = Math.min(y0, pv.y); y1 = Math.max(y1, pv.y);
+      }
+      const inside = (x, y, z) => { pv.set(x, y, z).project(camera); return pv.x > x0 - 0.04 && pv.x < x1 + 0.04 && pv.y > y0 && pv.y < y1 + 0.04; };
+      const b = G.M.ball;
+      if (b.z < S.body.z - 0.2 && inside(b.x, b.y, b.z)) want = 0.35;
+      if (S.pred && G.M.ball.last === 1 && inside(S.pred.x, S.pred.y, S.pred.z)) want = 0.35;
+    }
+    o.alpha += (want - o.alpha) * Math.min(1, dt * 12);
+    const a = o.alpha > 0.985 ? 1 : o.alpha;
+    for (const m of o.mats) { m.transparent = a < 1; m.opacity = a; }
+  }
+
   function updateFans(dt) {
     for (const f of G.fans) {
       f.ph += dt;
+      // in the side view the near bench is between the camera and the table
+      f.p.root.visible = !(G.view === 'side' && f.p.root.position.x > 0);
       if (f.cheer > 0) {
         f.cheer -= dt;
         Kit.people.pose(f.p, f.ph * (f.sig === 'boxing' ? 6.5 : 5), f.sig, 0.25);
@@ -382,20 +415,21 @@
       camLook.set(...G.look.at);
       fov = G.look.fov || 40;
     } else if (G.view === '1p') {
+      // over your right shoulder: the camera follows the paddle, so your body stays to the left of the table
       const S = M.sides[0];
-      G.camX += (S.pad.x * 0.3 - G.camX) * (1 - Math.exp(-2.5 * dt));
+      G.camX += (clamp(S.pad.x * 0.75 + 0.42, -1.3, 1.7) - G.camX) * (1 - Math.exp(-2.5 * dt));
       // keep the whole table in view on narrow screens: a wider lens and a step back
       const narrow = clamp((1.5 - asp) / 0.8, 0, 1);
-      fov = 52 + narrow * 14;
-      camPos.set(G.camX, 3.05 + narrow * 0.6, 4.9 + narrow * 1.0);
-      camLook.set(G.camX * 0.35, 0.78, -0.9);
+      fov = 52 + narrow * 24;
+      camPos.set(G.camX * (1 - narrow * 0.5), 2.95 + narrow * 0.55, 4.75 + narrow * 0.2);
+      camLook.set(G.camX * 0.3, 0.8 - narrow * 0.35, -0.95 + narrow * 0.75);
     } else if (G.view === 'side') {
       // the table and both players across the screen
-      const half = 3.3, dist = 7.6;
+      const half = 3.6, dist = 8.2;
       const hfov = 2 * Math.atan(half / dist);
       fov = clamp((2 * Math.atan(Math.tan(hfov / 2) / asp) * 180) / Math.PI, 28, 75);
-      camPos.set(dist, 3.25, 0);
-      camLook.set(0, 0.95, 0);
+      camPos.set(dist, 3.4, 0);
+      camLook.set(-0.3, 0.9, 0);
     } else {
       G.camT += dt * 0.07;
       const a = G.camT + 0.6;
@@ -530,7 +564,6 @@
         break;
       case 'point': onPoint(e); break;
       case 'game': {
-        G.gameScores.push(e.score);
         if (demo) break;
         bigCall(`GAME ${NAME(e.winner)}!`, `${e.score[0]} – ${e.score[1]}`, 'gold');
         SFX.fanfare();
@@ -628,6 +661,8 @@
       }
       return;
     }
+    if (e.game) G.gameScores.push(e.score);
+    stage.board.update(M.sides[0].score, M.sides[1].score, M.sides[0].games, M.sides[1].games, [NAME(0), NAME(1)]);
     if (!demo) {
       updateScoreHud(true, w);
       const reason = e.byStrike ? (e.ace ? 'ACE!' : e.smash ? 'SMASH!' : '') : e.reason;
@@ -647,7 +682,6 @@
     W.poseT = 0;
     if (W.cel === 'jumpshot') jumpShot(w);
     Lo.sadT = 1.1;
-    stage.board.update(M.sides[0].score, M.sides[1].score, M.sides[0].games, M.sides[1].games, [NAME(0), NAME(1)]);
   }
 
   // Teddy's jump shot: a hop, both hands up, and a basketball flies off: SWISH!
@@ -699,6 +733,7 @@
     }
     $('gameNo').textContent = G.mode === 'rally' ? `🤖 ${M.level.toUpperCase()}` : M.bestOf > 1 ? `GAME ${M.gameNo}` : 'TO 11';
     $('rallyBox').classList.toggle('hidden', G.mode !== 'rally');
+    $('hud').classList.toggle('rally', G.mode === 'rally');
     $('runNo').textContent = 0;
     $('runBest').textContent = load('bestRally.' + M.level, 0);
     updateScoreHud(false);
@@ -881,6 +916,10 @@
     $('winMsg').textContent = msg;
     showScreen('results');
     Kit.sound.music('over');
+    // the winner keeps celebrating behind the card
+    o.cel = Kit.roster.signature(o.e, 'hello');
+    o.celT = 1e9;
+    o.poseT = 0;
   }
 
   $('go1').addEventListener('click', () => openPick('1p'));
@@ -985,7 +1024,7 @@
         else showResults();
       }
     }
-    animate(running ? rdt * G.slow : 0, rdt);
+    animate(running || G.screen === 'results' ? rdt * G.slow : 0, rdt);
   }
 
   function animate(dt, rdt) {
@@ -1075,6 +1114,35 @@
     swing(o = {}) {
       G.script = { side: o.side || 0, swipe: { x: o.x || 0, y: o.y === undefined ? 2.5 : o.y }, keys: o.keys, serve: o.serve !== false, keep: !!o.keep };
       return G.script;
+    },
+    // play side 0 through real pointer events (mouse, or touch with { touch: true }): the "finger" moves onto the
+    // ball and swipes up through it (`swipe` px). stop(M) can end it early. Serves with a tap. Returns why it stopped.
+    drive(seconds = 5, o = {}) {
+      G.testing = true;
+      const M = G.M, V = new T.Vector3(), type = o.touch ? 'touch' : 'mouse', swipePx = o.swipe === undefined ? 120 : o.swipe;
+      const d = G.drv || (G.drv = { x: innerWidth / 2, y: innerHeight * 0.7 });
+      const lift = o.touch ? 64 : 0;
+      const pe = (t) => canvas.dispatchEvent(new PointerEvent(t, { clientX: d.x, clientY: d.y + lift, pointerType: type, bubbles: true, pointerId: 1, isPrimary: true }));
+      for (let f = 0; f < seconds * 60; f++) {
+        const S = M.sides[0];
+        const inc = M.ball.state === 'play' && M.ball.last === 1 && !S.done && S.pred && !o.idle;
+        if (inc) {
+          V.set(S.pred.x + (o.miss || 0), S.pred.y, S.pred.z).project(camera);
+          let sx = ((V.x + 1) / 2) * innerWidth, sy = ((1 - V.y) / 2) * innerHeight;
+          const tl = MM.timeToContact(M, S);
+          if (tl < 0.1) sy += swipePx / 2 - ((0.1 - tl) / 0.1) * swipePx;
+          d.x += (sx - d.x) * 0.35;
+          d.y += (sy - d.y) * 0.35;
+          if (o.touch && !IN.ptr.down) pe('pointerdown');
+          pe('pointermove');
+        }
+        if (M.phase === 'serve' && M.server === 0 && M.phaseT > 0.6) { pe('pointerdown'); pe('pointerup'); }
+        this.step(1 / 60);
+        if (o.stop && o.stop(M)) return 'stop';
+        if (M.phase === 'over') return 'over';
+      }
+      if (o.touch) pe('pointerup');
+      return 'time';
     },
     // let the test bot play a human side
     auto(side = 0, on = true) { G.auto[side] = on; bots[side] = null; return on; },

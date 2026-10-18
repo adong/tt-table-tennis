@@ -31,7 +31,7 @@
     ZMIN: C.L / 2 - 0.42, ZMAX: C.L / 2 + 0.52, // the range it slides in
     CPU_REACH: 0.27,
     SWING_T: 0.36, LIVE0: 0.02,
-    BUD_TIME: 10, BUD_COOL: 5, SAVE_DELAY: 0.12,
+    BUD_TIME: 10, BUD_COOL: 5, SAVE_DELAY: 0.07,
     WATCHDOG: 6, // ball seconds without a hit before a point is called anyway (never needed in testing)
   };
   // Level settings for human sides: ball speed (time scale), paddle reach, the pull toward the ball, and so on.
@@ -257,8 +257,11 @@
   }
 
   // how close the paddle must be; a smash is much harder to get back
+  // tired arms: after 20 shots in a rally the reach and the swing timing get a little stricter every shot,
+  // so every rally ends
+  const fatigue = (M) => Math.max(0.45, 1 - Math.max(0, M.rally - 20) * 0.03);
   function reachFor(M, S) {
-    const k = M.ball.kind === 'smash' ? 0.5 : 1;
+    const k = (M.ball.kind === 'smash' ? 0.5 : 1) * fatigue(M);
     return (S.ctrl === 'keys' ? M.lv.reachX : S.ctrl === 'cpu' ? K.CPU_REACH : M.lv.reach) * k;
   }
 
@@ -268,7 +271,7 @@
     let ok;
     if (S.ctrl === 'keys') {
       // a smash coming at you has to be timed just right
-      const live = b.kind === 'smash' ? S.swingT >= 0.06 && S.swingT <= 0.17 : S.swingT >= K.LIVE0 && S.swingT <= lv.live1;
+      const live = b.kind === 'smash' ? S.swingT >= 0.06 && S.swingT <= 0.17 : S.swingT >= K.LIVE0 && S.swingT <= lv.live1 * fatigue(M);
       if (late && b.kind === 'smash') return false;
       const reach = Math.abs(b.x - S.home.x) < reachFor(M, S) && b.y > 0.3 && b.y < 2.15;
       ok = reach && (live || (late && S.swingT >= 0));
@@ -545,7 +548,7 @@
 
   // pad and CPU sides: the body stands behind and to the left of the paddle (it's a forehand)
   function followBody(S, dt, v) {
-    const bx = S.pad.x - S.right * 0.62;
+    const bx = S.pad.x - S.right * 0.7;
     const bz = S.s * Math.max(Math.abs(S.plane) + 0.55, C.L / 2 + 0.42);
     const B = S.body, ox = B.x, oz = B.z;
     B.x += clamp(bx - B.x, -v * dt, v * dt);
@@ -638,8 +641,9 @@
       const bl = b.z * R.s, pl = R.plane * R.s;
       if (R.lateT < 0 && bl >= pl) {
         if (!tryHit(M, R, false)) {
-          if (R.ctrl === 'cpu') { R.done = true; return miss(M, R, 'passed'); }
-          R.lateT = M.lv.late;
+          // the CPU gets no second chance, and a waiting companion jumps in at once
+          if (R.ctrl === 'cpu' || (R.bud.on && R.bud.armed)) { R.done = true; return miss(M, R, 'passed'); }
+          R.lateT = M.lv.late * fatigue(M);
         }
       } else if (R.lateT >= 0 && bl > pl + 0.6) { R.done = true; return miss(M, R, 'passed'); }
     }
