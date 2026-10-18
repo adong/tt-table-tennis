@@ -9,7 +9,7 @@ TT means Table Tennis, and Teddy & Tommy: swipe through the ball to smash and sp
 Press **?** any time (or tap the round **?** button on the left edge) to see the keys. The game waits while you look.
 Tap the language button under it (the A文 icon) to switch between English and 中文; the dashboard and every game remember the choice.
 
-A table tennis (乒乓球) game starring Teddy and Tommy. The name is the pun: **TT** = **T**eddy & **T**ommy = **T**able **T**ennis. It's built with Claude Code from plain JavaScript and Three.js, on the shared Claude Games kit.
+A table tennis game starring Teddy and Tommy. The name is the pun: **TT** = **T**eddy & **T**ommy = **T**able **T**ennis. It's built with Claude Code from plain JavaScript and Three.js, on the shared Claude Games kit.
 
 There are no image, model or audio files. The players are the kit's blocky characters, every texture is painted on a canvas, and every sound is synthesised.
 
