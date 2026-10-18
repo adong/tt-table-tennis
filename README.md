@@ -1,5 +1,7 @@
 # TT: Table Tennis
 
+[![TT Table Tennis title screen](docs/screenshot.jpg)](https://adong.github.io/tt-table-tennis/)
+
 A table tennis (乒乓球) game starring Teddy and Tommy. The name is the pun: **TT** = **T**eddy & **T**ommy = **T**able **T**ennis. It's built with Claude Code from plain JavaScript and Three.js, on the shared Claude Games kit.
 
 There are no image, model or audio files. The players are the kit's blocky characters, every texture is painted on a canvas, and every sound is synthesised.
