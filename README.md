@@ -3,7 +3,7 @@
 [![TT Table Tennis title screen](docs/screenshot.jpg)](https://adong.github.io/tt-table-tennis/)
 
 Press **?** any time (or tap the round **?** button on the left edge) to see the keys. The game waits while you look.
-Tap **中文 / EN** under it to switch between English and 中文 (the dashboard and every game remember the choice).
+Tap the language button under it (the A文 icon) to switch between English and 中文; the dashboard and every game remember the choice.
 
 A table tennis (乒乓球) game starring Teddy and Tommy. The name is the pun: **TT** = **T**eddy & **T**ommy = **T**able **T**ennis. It's built with Claude Code from plain JavaScript and Three.js, on the shared Claude Games kit.
 
