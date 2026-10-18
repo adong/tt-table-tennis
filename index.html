@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f62b8">
+<script src="js/title.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #ffd400;
+    --ball: #ff9a1f;
+    --pink: #ff3d7f;
+    --cyan: #18d4ff;
+    --blue: #2f6fe0;
+    --red: #e0364a;
+    --green: #3fc22b;
+    --table: #1f62b8;
+    --ink: #14121f;
+    --display: 'Bungee', 'Arial Black', Impact, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #9fd3ef; color: #fff;
+    font-family: 'Rubik', system-ui, -apple-system, sans-serif;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 62%, rgba(10, 8, 30, 0.25) 100%); }
+  .hidden { opacity: 0 !important; pointer-events: none !important; visibility: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  .bars {
+    position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
+  }
+  .pb { flex: 1; display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+  .pb.right { flex-direction: row-reverse; }
+  .face {
+    flex: none; width: 62px; height: 62px; border-radius: 16px; overflow: hidden; border: 3px solid #fff;
+    background: radial-gradient(circle at 50% 35%, #a5c8ff, var(--blue)); box-shadow: 0 4px 0 var(--ink);
+  }
+  .right .face { background: radial-gradient(circle at 50% 35%, #ffc0c8, var(--red)); }
+  .face img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.15) translateY(4%); }
+  .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .right .col { align-items: flex-end; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .right .row { flex-direction: row-reverse; }
+  .nm { font-family: var(--display); font-size: 20px; line-height: 1; -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink); white-space: nowrap; }
+  .who { font: 800 11px/1 'Rubik', sans-serif; letter-spacing: 1px; padding: 3px 7px; border-radius: 999px; background: var(--blue); border: 2px solid #fff; white-space: nowrap; }
+  .right .who { background: var(--red); }
+  .srv { font-size: 18px; line-height: 1; opacity: 0; transition: opacity 0.2s; filter: drop-shadow(0 2px 0 var(--ink)); }
+  .srv.on { opacity: 1; animation: bob 0.8s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-3px); } }
+  .pts {
+    flex: none; min-width: 66px; height: 66px; padding: 0 10px; border-radius: 18px; display: grid; place-items: center;
+    font-family: var(--display); font-size: 42px; line-height: 1; color: #fff;
+    background: var(--blue); border: 3px solid #fff; box-shadow: 0 4px 0 var(--ink); font-variant-numeric: tabular-nums;
+    -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill;
+  }
+  .right .pts { background: var(--red); }
+  .pts.bump { animation: bump 0.5s cubic-bezier(.2, 1.8, .4, 1); }
+  @keyframes bump { 0% { transform: scale(1.6) rotate(-8deg); } }
+  .gms { display: flex; gap: 4px; }
+  .gms i { width: 18px; height: 18px; border-radius: 50%; background: rgba(20, 18, 31, 0.5); border: 2px solid rgba(255, 255, 255, 0.75); }
+  .gms i.on { background: var(--yellow); border-color: var(--ink); box-shadow: 0 0 10px rgba(255, 212, 0, 0.9); }
+  /* the companion: his face, a bar for the time he has left (or how rested he is) */
+  .bud { display: flex; align-items: center; gap: 5px; width: min(210px, 100%); pointer-events: auto; cursor: pointer; }
+  .right .bud { flex-direction: row-reverse; }
+  .bud img { width: 30px; height: 30px; border-radius: 8px; border: 2px solid #fff; background: radial-gradient(circle at 50% 35%, #ffe2a0, #ff9f1c); object-fit: cover; }
+  .bud i { position: relative; flex: 1; height: 11px; border-radius: 6px; background: rgba(20, 18, 31, 0.6); border: 2px solid rgba(255, 255, 255, 0.7); overflow: hidden; --fill: 0; }
+  .bud i::after { content: ''; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--fill)); background: linear-gradient(90deg, var(--yellow), #ff9f1c); }
+  .right .bud i::after { transform-origin: right; }
+  .bud .k { font: 800 10px/1 'Rubik', sans-serif; padding: 3px 5px; border-radius: 5px; background: #fff; color: var(--ink); white-space: nowrap; }
+  .bud.on img { border-color: var(--yellow); box-shadow: 0 0 10px rgba(255, 212, 0, 0.95); animation: pulse 0.7s ease-in-out infinite; }
+  .bud.on i::after { background: linear-gradient(90deg, #9dff6a, var(--green)); }
+  .bud.rest { opacity: 0.7; }
+  .bud.rest img { filter: grayscale(1); }
+  .bud.rest i::after { background: rgba(255, 255, 255, 0.55); }
+  @keyframes pulse { 50% { transform: scale(1.12); } }
+  .no { animation: nope 0.3s linear; }
+  @keyframes nope { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
+  .mid { flex: none; display: flex; flex-direction: column; align-items: center; gap: 5px; padding-top: 2px; }
+  #gameNo {
+    font-family: var(--display); font-size: 17px; line-height: 1; padding: 7px 12px; border-radius: 12px; color: var(--yellow);
+    background: rgba(20, 18, 31, 0.72); border: 3px solid #fff; box-shadow: 0 4px 0 var(--ink); white-space: nowrap;
+  }
+  .ibtns { display: flex; gap: 6px; pointer-events: auto; }
+  .ibtn {
+    width: 38px; height: 38px; border-radius: 11px; font-size: 16px; line-height: 1;
+    background: rgba(20, 18, 31, 0.5); border: 2px solid rgba(255, 255, 255, 0.75); display: grid; place-items: center;
+  }
+  .ibtn.corner { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 20; }
+  /* rally challenge counter */
+  #rallyBox {
+    position: absolute; top: max(10px, env(safe-area-inset-top)); left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 14px;
+    padding: 8px 18px; border-radius: 18px; background: rgba(20, 18, 31, 0.72); border: 3px solid #fff; box-shadow: 0 4px 0 var(--ink);
+    font-family: var(--display); font-size: 18px; color: var(--cyan); white-space: nowrap;
+  }
+  #rallyBox b { font-size: 44px; color: #fff; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; min-width: 56px; text-align: center; }
+  #rallyBox b.bump { animation: bump 0.4s cubic-bezier(.2, 1.8, .4, 1); }
+  #rallyBox i { font-style: normal; color: var(--yellow); }
+  /* the big call ("POINT TEDDY!"), shot names by each player, toasts */
+  .call { position: absolute; left: 0; right: 0; top: 24%; text-align: center; opacity: 0; pointer-events: none; padding: 0 12px; }
+  .call b {
+    display: block; font-family: var(--display); font-weight: 400; font-size: clamp(38px, 7.5vw, 82px); line-height: 1; color: #fff;
+    -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--blue), 0 11px 0 var(--ink);
+  }
+  .call small {
+    display: inline-block; margin-top: 12px; font-family: var(--display); font-size: clamp(16px, 2.8vw, 26px); color: var(--ink);
+    background: var(--yellow); padding: 4px 14px; border-radius: 12px; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink);
+  }
+  .call small:empty { display: none; }
+  .call.show { animation: slamFade 1.7s ease-out forwards; }
+  .call.red b { text-shadow: 0 6px 0 var(--red), 0 11px 0 var(--ink); }
+  .call.gold b { color: var(--yellow); text-shadow: 0 6px 0 var(--pink), 0 11px 0 var(--ink); }
+  @keyframes slamFade {
+    0% { opacity: 0; transform: scale(2.2) rotate(-6deg); }
+    12% { opacity: 1; transform: scale(0.92); }
+    20% { transform: scale(1.04); }
+    28%, 82% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: translateY(-16px); }
+  }
+  .callout {
+    position: absolute; top: 120px; left: max(18px, env(safe-area-inset-left)); font-family: var(--display); opacity: 0; pointer-events: none;
+    font-size: clamp(22px, 3.6vw, 34px); color: var(--yellow); transform: rotate(-5deg); transform-origin: left center;
+    -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); white-space: nowrap;
+  }
+  .callout.right { left: auto; right: max(18px, env(safe-area-inset-right)); transform: rotate(5deg); transform-origin: right center; }
+  .callout.show { animation: comboPop 1.1s ease-out forwards; }
+  @keyframes comboPop {
+    0% { opacity: 0; scale: 2.2; }
+    12% { opacity: 1; scale: 0.9; }
+    20% { scale: 1.05; }
+    28%, 80% { opacity: 1; scale: 1; }
+    100% { opacity: 0; scale: 1; translate: 0 -20px; }
+  }
+  #toasts { position: absolute; left: 0; right: 0; bottom: max(16px, 5%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+  .toast {
+    font-family: var(--display); font-size: clamp(16px, 2.6vw, 24px); padding: 8px 18px; border-radius: 16px; white-space: nowrap;
+    color: var(--ink); background: #fff; border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink);
+    animation: toast 2s ease-out forwards;
+  }
+  .toast.save { background: var(--yellow); font-size: clamp(20px, 3.4vw, 32px); }
+  .toast.treat { background: #ffe2a0; }
+  @keyframes toast { 0% { opacity: 0; transform: translateY(20px) scale(0.6); } 10% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+  .hint {
+    position: absolute; left: 50%; bottom: 22%; translate: -50% 0; font-family: var(--display); font-size: clamp(18px, 3vw, 28px);
+    padding: 10px 22px; border-radius: 18px; background: rgba(20, 18, 31, 0.7); border: 3px solid #fff; white-space: nowrap;
+    transition: opacity 0.3s; opacity: 0; animation: bob 1s ease-in-out infinite;
+  }
+  .hint.on { opacity: 1; }
+  /* the big companion buttons (touch, and clickable) */
+  .budBtn {
+    position: absolute; bottom: max(14px, env(safe-area-inset-bottom)); left: max(14px, env(safe-area-inset-left)); pointer-events: auto;
+    width: 104px; height: 104px; border-radius: 28px; border: 4px solid #fff; overflow: hidden;
+    background: radial-gradient(circle at 50% 35%, #ffe2a0, #ff9f1c); box-shadow: 0 6px 0 var(--ink);
+  }
+  .budBtn.right { left: auto; right: max(14px, env(safe-area-inset-right)); }
+  .budBtn img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.1) translateY(6%); }
+  .budBtn .bb { position: absolute; left: 0; bottom: 0; height: 9px; width: calc(var(--fill, 0) * 100%); background: var(--green); }
+  .budBtn .key { position: absolute; top: 6px; right: 6px; font: 800 12px/1 'Rubik', sans-serif; font-style: normal; padding: 3px 6px; border-radius: 6px; background: #fff; color: var(--ink); }
+  .budBtn .lab { position: absolute; left: 0; right: 0; bottom: 10px; font-family: var(--display); font-size: 12px; text-align: center; -webkit-text-stroke: 1px var(--ink); paint-order: stroke fill; }
+  .budBtn.on { border-color: var(--yellow); box-shadow: 0 0 0 4px rgba(255, 212, 0, 0.6), 0 6px 0 var(--ink); }
+  .budBtn.rest { filter: grayscale(0.9); opacity: 0.7; }
+  .budBtn:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--ink); }
+  @media (hover: none) and (pointer: coarse) { .bud .k, .budBtn .key { display: none; } }
+
+  /* ---------- screens ---------- */
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); overflow-y: auto;
+    background: linear-gradient(180deg, rgba(20, 30, 80, 0.35), rgba(20, 18, 31, 0.55)); transition: opacity 0.25s;
+  }
+  .screen > * { flex-shrink: 0; }
+  .logo { text-align: center; line-height: 0.9; filter: drop-shadow(0 8px 0 var(--ink)); }
+  .logo .big {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: var(--display); font-size: clamp(90px, 20vw, 190px); color: var(--yellow);
+    -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; text-shadow: 0 9px 0 var(--pink);
+  }
+  .logo .big .pp { display: inline-block; width: 0.42em; height: 0.42em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffd9a0, var(--ball) 55%, #d96a00); border: 6px solid var(--ink); margin: 0 0.04em; animation: bounce 0.9s ease-in-out infinite; }
+  @keyframes bounce { 0%, 100% { transform: translateY(-0.35em); } 50% { transform: translateY(0.12em) scale(1.08, 0.92); } }
+  .logo .small {
+    display: block; margin-top: 4px; font-family: var(--display); font-size: clamp(26px, 5.6vw, 54px); color: #fff;
+    -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--table);
+  }
+  .logo .tag { display: inline-block; margin-top: 12px; font: 800 clamp(13px, 2vw, 17px)/1 'Rubik', sans-serif; letter-spacing: 1px; background: var(--ink); padding: 7px 14px; border-radius: 999px; }
+  .logo .tag b { color: var(--yellow); }
+  .modes { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .big-btn {
+    min-width: 200px; padding: 16px 22px; border-radius: 24px; font-family: var(--display); font-size: clamp(20px, 3vw, 28px); line-height: 1.05;
+    color: var(--ink); background: var(--yellow); border: 4px solid var(--ink); box-shadow: 0 7px 0 var(--ink); text-align: center;
+  }
+  .big-btn small { display: block; margin-top: 4px; font: 800 13px/1.1 'Rubik', sans-serif; letter-spacing: 0.5px; opacity: 0.8; }
+  .big-btn.blue { background: #8cc2ff; }
+  .big-btn.green { background: #9dff6a; }
+  .big-btn:active { transform: translateY(4px); box-shadow: 0 3px 0 var(--ink); }
+  .big-btn.sel { outline: 5px solid #fff; }
+  .settings { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
+  .set { display: flex; align-items: center; gap: 8px; }
+  .set > span { font: 800 13px/1 'Rubik', sans-serif; letter-spacing: 1.5px; text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6); }
+  .seg { display: flex; border-radius: 14px; overflow: hidden; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); }
+  .seg button { padding: 9px 13px; font: 800 15px/1 'Rubik', sans-serif; background: rgba(255, 255, 255, 0.9); color: var(--ink); white-space: nowrap; }
+  .seg button + button { border-left: 3px solid var(--ink); }
+  .seg button.on { background: var(--pink); color: #fff; }
+  .foot { font: 700 13px/1.4 'Rubik', sans-serif; opacity: 0.9; text-align: center; max-width: 720px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+  .foot b { color: var(--yellow); }
+  /* the player picker */
+  h2 { font-family: var(--display); font-weight: 400; font-size: clamp(26px, 4.4vw, 42px); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); text-align: center; }
+  .prow { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .prow .lab { font: 800 14px/1 'Rubik', sans-serif; letter-spacing: 2px; padding: 5px 12px; border-radius: 999px; background: var(--blue); border: 2px solid #fff; }
+  .prow.p2 .lab { background: var(--red); }
+  .cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .card {
+    position: relative; width: 92px; padding: 6px 4px 6px; border-radius: 18px; background: rgba(255, 255, 255, 0.92); border: 3px solid var(--ink);
+    box-shadow: 0 5px 0 var(--ink); color: var(--ink); font-family: var(--display); font-size: 13px; text-align: center;
+  }
+  .card img { width: 74px; height: 74px; display: block; margin: 0 auto 2px; border-radius: 12px; background: radial-gradient(circle at 50% 35%, #e9f4ff, #9cc7f2); }
+  .card.sel { background: var(--yellow); transform: translateY(-4px); box-shadow: 0 9px 0 var(--ink); }
+  .prow.p2 .card.sel { background: #ffb3bd; }
+  .card .k { position: absolute; top: -9px; right: -6px; font: 800 10px/1 'Rubik', sans-serif; padding: 3px 6px; border-radius: 999px; background: var(--pink); color: #fff; border: 2px solid var(--ink); }
+  .buddyNote { font: 800 13px/1 'Rubik', sans-serif; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: rgba(20, 18, 31, 0.6); }
+  .buddyNote img { width: 26px; height: 26px; border-radius: 8px; background: radial-gradient(circle at 50% 35%, #ffe2a0, #ff9f1c); }
+  .btnrow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .small-btn { padding: 12px 18px; border-radius: 18px; font-family: var(--display); font-size: 18px; color: var(--ink); background: #fff; border: 4px solid var(--ink); box-shadow: 0 6px 0 var(--ink); }
+  .small-btn:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--ink); }
+  /* results */
+  .win { font-family: var(--display); font-size: clamp(44px, 9vw, 96px); color: var(--yellow); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 7px 0 var(--pink), 0 12px 0 var(--ink); text-align: center; line-height: 1; }
+  .rcard { display: flex; gap: 18px; align-items: center; padding: 14px 20px; border-radius: 24px; background: rgba(255, 255, 255, 0.94); color: var(--ink); border: 4px solid var(--ink); box-shadow: 0 7px 0 var(--ink); }
+  .rcard img { width: 110px; height: 110px; border-radius: 18px; background: radial-gradient(circle at 50% 35%, #fff3b0, var(--yellow)); }
+  .rcard .sc { font-family: var(--display); font-size: clamp(26px, 4vw, 40px); }
+  .rcard .gl { font: 800 14px/1.5 'Rubik', sans-serif; }
+  .rcard .st { font: 700 13px/1.5 'Rubik', sans-serif; opacity: 0.8; }
+  .msg { font: 800 16px/1.3 'Rubik', sans-serif; text-align: center; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
+  @media (max-height: 560px) {
+    .logo .big { font-size: 84px; }
+    .logo .small { font-size: 26px; }
+    .screen { gap: 10px; justify-content: flex-start; }
+    .face { width: 48px; height: 48px; }
+    .pts { min-width: 52px; height: 52px; font-size: 32px; }
+    .budBtn { width: 84px; height: 84px; }
+    .card { width: 78px; }
+    .card img { width: 60px; height: 60px; }
+  }
+  @media (max-width: 640px) {
+    .nm { font-size: 15px; }
+    .who { display: none; }
+    .big-btn { min-width: 160px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="vignette"></div>
+
+<div id="hud" class="hidden">
+  <div class="bars">
+    <div class="pb left" id="pb0">
+      <div class="face"><img alt=""></div>
+      <div class="col">
+        <div class="row"><span class="nm">TEDDY</span><span class="who">YOU</span><span class="srv">🏓</span></div>
+        <div class="gms"></div>
+        <div class="bud" data-side="0"><img alt=""><i></i><span class="k">T</span></div>
+      </div>
+      <div class="pts">0</div>
+    </div>
+    <div class="mid">
+      <div id="gameNo">GAME 1</div>
+      <div class="ibtns"><button class="ibtn" id="pauseBtn" aria-label="pause">❚❚</button><button class="ibtn" id="muteBtn" aria-label="sound">🔊</button></div>
+    </div>
+    <div class="pb right" id="pb1">
+      <div class="face"><img alt=""></div>
+      <div class="col">
+        <div class="row"><span class="nm">TOMMY</span><span class="who">CPU</span><span class="srv">🏓</span></div>
+        <div class="gms"></div>
+        <div class="bud" data-side="1"><img alt=""><i></i><span class="k">ENTER</span></div>
+      </div>
+      <div class="pts">0</div>
+    </div>
+  </div>
+  <div id="rallyBox" class="hidden">RALLY <b id="runNo">0</b> BEST <i id="runBest">0</i></div>
+  <div class="call" id="call"><b></b><small></small></div>
+  <div class="callout" id="co0"></div>
+  <div class="callout right" id="co1"></div>
+  <div id="toasts"></div>
+  <div class="hint" id="hint"></div>
+  <button class="budBtn" id="budBtn0" data-side="0"><img alt=""><span class="lab">TOMMY</span><span class="bb"></span><i class="key">T</i></button>
+  <button class="budBtn right" id="budBtn1" data-side="1"><img alt=""><span class="lab">TEDDY</span><span class="bb"></span><i class="key">ENTER</i></button>
+</div>
+
+<div id="title" class="screen">
+  <div class="logo">
+    <span class="big">T<span class="pp"></span>T</span>
+    <span class="small">TABLE TENNIS</span>
+    <span class="tag">STARRING <b>TEDDY</b> &amp; <b>TOMMY</b> · 乒乓球</span>
+  </div>
+  <div class="modes">
+    <button class="big-btn" id="go1">🏓 1 PLAYER<small>you vs the computer</small></button>
+    <button class="big-btn blue" id="go2">👫 2 PLAYERS<small>one keyboard, side view</small></button>
+    <button class="big-btn green" id="go3">🤖 RALLY CHALLENGE<small>keep it going vs Bolt</small></button>
+  </div>
+  <div class="settings">
+    <div class="set"><span>LEVEL</span><div class="seg" id="segLevel"><button data-v="easy">🐣 EASY</button><button data-v="normal">🔥 NORMAL</button><button data-v="pro">🏆 PRO</button></div></div>
+    <div class="set"><span>MATCH</span><div class="seg" id="segGames"><button data-v="1">1 GAME</button><button data-v="3">BEST OF 3</button><button data-v="5">BEST OF 5</button></div></div>
+  </div>
+  <div class="foot" id="titleFoot">Move the paddle with your <b>finger</b> or <b>mouse</b>. Swipe up for topspin, down for backspin, sideways to curve. Tap your brother's face (or <b>T</b>) to call him in!</div>
+</div>
+
+<div id="pick" class="screen hidden">
+  <h2 id="pickTitle">WHO'S PLAYING?</h2>
+  <div class="prow" id="row0"><span class="lab" id="lab0">YOU</span><div class="cards"></div><div class="buddyNote"><img alt=""><span></span></div></div>
+  <div class="prow p2" id="row1"><span class="lab" id="lab1">VS</span><div class="cards"></div><div class="buddyNote"><img alt=""><span></span></div></div>
+  <div class="btnrow"><button class="small-btn" id="pickBack">◀ BACK</button><button class="big-btn" id="pickGo">PLAY! ▶</button></div>
+  <div class="foot" id="pickFoot"></div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <h2>PAUSED</h2>
+  <div class="btnrow"><button class="big-btn" id="resumeBtn">▶ RESUME</button><button class="small-btn" id="quitBtn">MENU</button></div>
+  <div class="foot" id="pauseFoot"></div>
+</div>
+
+<div id="results" class="screen hidden">
+  <div class="win" id="winText">TEDDY WINS!</div>
+  <div class="rcard"><img id="winFace" alt=""><div><div class="sc" id="winScore">2 – 1</div><div class="gl" id="winGames"></div><div class="st" id="winStats"></div></div></div>
+  <div class="msg" id="winMsg"></div>
+  <div class="btnrow"><button class="big-btn" id="againBtn">PLAY AGAIN</button><button class="small-btn" id="menuBtn">MENU</button></div>
+</div>
+
+<button class="ibtn corner" id="muteMenu" aria-label="sound">🔊</button>
+
+<script src="kit/three.min.js"></script>
+<script src="kit/gfx.js"></script>
+<script src="kit/people.js"></script>
+<script src="kit/roster.js"></script>
+<script src="kit/portraits.js"></script>
+<script src="kit/sound.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/match.js"></script>
+<script src="js/cpu.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/poses.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
